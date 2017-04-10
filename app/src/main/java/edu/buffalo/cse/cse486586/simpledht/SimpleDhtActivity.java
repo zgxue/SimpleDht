@@ -23,6 +23,9 @@ public class SimpleDhtActivity extends Activity {
         findViewById(R.id.button1).setOnClickListener(
                 new OnTestClickListenerLDump(tv, getContentResolver()));
 
+        findViewById(R.id.button2).setOnClickListener(
+                new OnTestClickListenerGDump(tv, getContentResolver()));
+
     }
 
     @Override

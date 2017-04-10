@@ -13,10 +13,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-public class OnTestClickListenerLDump implements View.OnClickListener {
+public class OnTestClickListenerGDump implements View.OnClickListener {
 
     private static final String TAG = OnTestClickListenerLDump.class.getName();
-//    private static final int TEST_CNT = 50;
+    //    private static final int TEST_CNT = 50;
     private static final String KEY_FIELD = "key";
     private static final String VALUE_FIELD = "value";
 
@@ -24,7 +24,7 @@ public class OnTestClickListenerLDump implements View.OnClickListener {
     private final ContentResolver mContentResolver;
     private final Uri mUri;
 
-    public OnTestClickListenerLDump(TextView _tv, ContentResolver _cr) {
+    public OnTestClickListenerGDump(TextView _tv, ContentResolver _cr) {
         mTextView = _tv;
         mContentResolver = _cr;
         mUri = buildUri("content", "edu.buffalo.cse.cse486586.simpledht.provider");
@@ -56,7 +56,7 @@ public class OnTestClickListenerLDump implements View.OnClickListener {
 //            }catch (Exception e){
 //                Log.e(TAG, e.getMessage());
 //            }
-            
+
             if(gonnaQuery){
                 publishProgress("Begin to query!\n");
                 Cursor myCursor = testQuery();
@@ -93,8 +93,7 @@ public class OnTestClickListenerLDump implements View.OnClickListener {
         private Cursor testQuery() {
 
             Cursor resultCursor = mContentResolver.query(mUri, null,
-                    "@", null, null);
-            Log.e(TAG, "Now in testQuery()");
+                    "*", null, null);
 //            Cursor resultCursor = mContentResolver.query(mUri, null,
 //                    "key4", null, null);
             Log.e(TAG, "[testQuery()] finish query and got resultCursor");

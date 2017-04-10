@@ -105,10 +105,12 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public Uri insert(Uri uri, ContentValues values) {
+        logPrint("[insert]Inserting1....I got the values: "+ values.getAsString(KEY_FIELD) + " "+ values.getAsString(VALUE_FIELD));
         String responsibleNode = findResponsibleNode(values.getAsString(KEY_FIELD));
         String strSend = values.getAsString(KEY_FIELD) + REGEX + values.getAsString(VALUE_FIELD);
 
-        logPrint("Inserting....Found the responsibleNode: "+responsibleNode);
+        logPrint("[insert] now the responsibleNode is "+responsibleNode);
+        logPrint("[insert]Inserting....Found the responsibleNode: "+responsibleNode);
 
 
         try{
@@ -170,6 +172,7 @@ public class SimpleDhtProvider extends ContentProvider {
             logPrint("Begin to get into serversocket");
             ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
             new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
+            new SendJoinTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
 
         }catch (IOException e){
             Log.e(TAG, "Can't create a ServerSocket");
@@ -228,13 +231,9 @@ public class SimpleDhtProvider extends ContentProvider {
 //                myWrite.close();
 
                 logPrint("[query] Finish sending query command: "+ strSend + " , and wait feedback.....");
-                logPrint("1");
                 BufferedReader br = new BufferedReader(new InputStreamReader(socket0.getInputStream()));
-                logPrint("2");
                 String tmp = br.readLine();
-                logPrint("3");
                 br.close();
-                logPrint("4");
                 logPrint("[query] I got feedback: "+tmp);
                 String[] queryResponses = tmp.split(REGEX);
                 for (int j = 1; j < queryResponses.length; j+=2) {
@@ -359,11 +358,46 @@ public class SimpleDhtProvider extends ContentProvider {
             }
         }
     }*/
+    public class SendJoinTask extends AsyncTask<ServerSocket, String, Void> {
+        @Override
+        protected Void doInBackground(ServerSocket... sockets) {
+            allNodes.add(selfPort);
+            if(!selfPort.equals("11108")){
+                while (true){
+                    logPrint("[onCreate] try to connect to 11108");
+                    try {
+                        Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                                Integer.valueOf("11108"));
+
+                        String strToSend = "JOIN" + REGEX + String.valueOf(selfPort);
+                        OutputStream outputStream = socket0.getOutputStream();
+                        outputStream.write((strToSend).getBytes());
+                        outputStream.flush();
+                        outputStream.close();
+                        socket0.close();
+                        break;
+
+                    } catch (Exception e){
+                        logPrint("[onCreate] Got an exception when tring to connect to 11108: "+e.getMessage());
+                        try {
+                            Thread.sleep(200);
+                        }catch (InterruptedException e1){
+                            logPrint(e1.getMessage());
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+
 
     public class ServerTask extends AsyncTask<ServerSocket, String, Void> {
 
         @Override
         protected Void doInBackground(ServerSocket... sockets) {
+            /**************************************
             if(selfPort.equals("11108")){
                 allNodes.add("11108");
             } else {
@@ -384,7 +418,7 @@ public class SimpleDhtProvider extends ContentProvider {
                     } catch (Exception e){
                         logPrint("[onCreate] Got an exception when tring to connect to 11108: "+e.getMessage());
                         try {
-                            Thread.sleep(100);
+                            Thread.sleep(200);
                         }catch (InterruptedException e1){
                             logPrint(e1.getMessage());
                         }
@@ -392,17 +426,18 @@ public class SimpleDhtProvider extends ContentProvider {
                 }
             }
             ///end 连接11108
+             ***********************************/
 
 
             ServerSocket serverSocket = sockets[0];
-            ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
-//            ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+//            ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
+            ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
             while (true) {
                 try {
                     Socket socket_sv = serverSocket.accept();
                     logPrint("I accpted a new socket");
-                    cachedThreadPool.execute(new AsServer(socket_sv));
-//                    singleThreadExecutor.execute(new AsServer(socket_sv));
+//                    cachedThreadPool.execute(new AsServer(socket_sv));
+                    singleThreadExecutor.execute(new AsServer(socket_sv));
 //                    BufferedReader br = new BufferedReader(new InputStreamReader(socket_sv.getInputStream()));
 //                    String msg = br.readLine();
 
@@ -444,7 +479,7 @@ public class SimpleDhtProvider extends ContentProvider {
                 if(tokens[0].equals("JOIN")){
                     onJOIN(tokens[1]);
                 }else if(tokens[0].equals("INSERT")){
-                    onINSERT(socket, tokens[1]);
+                    onINSERT(tokens[1]);
                 }else if(tokens[0].equals("QUERY")) {
                     onQUERY(socket, tokens[1]);
                 }else if(tokens[0].equals("JOINUPDATE")){
@@ -476,9 +511,9 @@ public class SimpleDhtProvider extends ContentProvider {
                         Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                                 Integer.valueOf(eachNode));
 
-                        strToSend = "JOINUPDATE" + REGEX + strToSend;
+                        String sts = "JOINUPDATE" + REGEX + strToSend;
                         OutputStream outputStream = socket0.getOutputStream();
-                        outputStream.write((strToSend).getBytes());
+                        outputStream.write((sts).getBytes());
                         outputStream.flush();
                         outputStream.close();
 
@@ -538,7 +573,8 @@ public class SimpleDhtProvider extends ContentProvider {
                 }
             }
 
-            private void onINSERT(Socket socket, String content){
+            private void onINSERT(String content){
+                logPrint("[Server:onINSERT] try to insert content: " + content);
                 String[] tokens = content.split(REGEX);
                 //构造 contentValues 并插入。
                 for (int i = 0; i < tokens.length; i += 2) {
@@ -547,17 +583,17 @@ public class SimpleDhtProvider extends ContentProvider {
                     t.put(VALUE_FIELD, tokens[i+1]);
                     localInsert(t);
                 }
-
-                try{
+//
+//                try{
 //                    OutputStream outputStream = socket.getOutputStream();
 //                    String strSend = "OK";
 //                    outputStream.write((strSend).getBytes());
 //                    outputStream.flush();
 //                    outputStream.close();
-                    socket.close();
-                }catch (Exception e){
-                    logPrint(e.getMessage());
-                }
+//                    socket.close();
+//                }catch (Exception e){
+//                    logPrint(e.getMessage());
+//                }
             }
 
             private void onQUERY(Socket socket, String content){
