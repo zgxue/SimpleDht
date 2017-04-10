@@ -90,8 +90,26 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
+        String responsibleNode = findResponsibleNode(selection);
+        if(responsibleNode.equals(selfPort)){
+            localDelete(selection);
+        }else{
+            try{
+                Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                        Integer.valueOf(responsibleNode));
+                String strSend = "DELETE"+REGEX+selection;
+                OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
+                myWrite.write(strSend+"\n");
+                myWrite.flush();
+                socket0.close();
+            }catch(Exception e){
+                logPrint("[delete] "+ e.getMessage());
+            }
+        }
+
         return 0;
     }
+
     private int localDelete(String selection){
         db = mySQLiteOpenHelper.getWritableDatabase();
         return db.delete(DB_NAME, "key='"+selection + "'", null);
@@ -487,6 +505,8 @@ public class SimpleDhtProvider extends ContentProvider {
                     onQUERY(socket, tokens[1]);
                 }else if(tokens[0].equals("JOINUPDATE")){
                     onJOINUPDATE(tokens[1]);
+                }else if(tokens[0].equals("DELETE")){
+                    onDELETE(tokens[1]);
                 }
                 else{
                     logPrint("[dealwithCommand] This commander is not supported!");
@@ -630,6 +650,9 @@ public class SimpleDhtProvider extends ContentProvider {
                     logPrint(e.getMessage());
                 }
 
+            }
+            private void onDELETE(String content){
+                localDelete(content);
             }
 
             ////////////////////////////////////////////////////////////////////////
