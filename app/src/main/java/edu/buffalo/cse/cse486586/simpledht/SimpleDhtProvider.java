@@ -1,10 +1,12 @@
 package edu.buffalo.cse.cse486586.simpledht;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Formatter;
+import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +59,8 @@ public class SimpleDhtProvider extends ContentProvider {
 //    private static String predecessor;
 //    private static String successor;
     private static ArrayList<String> allNodes = new ArrayList<String>();
+    HashMap<String, Socket> allSockets = new HashMap<String, Socket>();
+
 
     private SQLiteDatabase db;
     private MySQLiteOpenHelper mySQLiteOpenHelper;
@@ -85,7 +90,6 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
-
         return 0;
     }
     private int localDelete(String selection){
@@ -114,6 +118,7 @@ public class SimpleDhtProvider extends ContentProvider {
             strSend = "INSERT" + REGEX + strSend;
             outputStream.write((strSend).getBytes());
             outputStream.flush();
+            outputStream.close();
 //            logPrint("[insert] Finish send and wait for OK.....");
 
 //            BufferedReader br = new BufferedReader(new InputStreamReader(socket0.getInputStream()));
@@ -176,7 +181,6 @@ public class SimpleDhtProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
             String sortOrder) {
-        logPrint("[query] selection is "+selection);
 
         if(selection.equals("@")){
             return localQuery(null);
@@ -188,9 +192,10 @@ public class SimpleDhtProvider extends ContentProvider {
                     Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                             Integer.valueOf(allNodes.get(i)));
                     String strSend = "QUERY"+REGEX+"*ALL*";
-                    OutputStream outputStream = socket0.getOutputStream();
-                    outputStream.write((strSend).getBytes());
-                    outputStream.flush();
+                    OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
+                    myWrite.write(strSend+"\n");
+                    myWrite.flush();
+
 
                     BufferedReader br = new BufferedReader(new InputStreamReader(socket0.getInputStream()));
                     String[] queryResponses = br.readLine().split(REGEX);
@@ -200,7 +205,7 @@ public class SimpleDhtProvider extends ContentProvider {
                     socket0.close();
 
                 } catch (IOException e){
-                    logPrint(e.getMessage());
+                    logPrint("[query2]"+e.getMessage());
                 }
             }
             return myCursor;
@@ -210,21 +215,28 @@ public class SimpleDhtProvider extends ContentProvider {
             String responsibleNode = findResponsibleNode(selection);
 
             logPrint("[query] selection is "+selection+ " and responsibleNode is "+responsibleNode);
-
+            Socket socket0;
+            String strSend = "";
             try {
-                Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                         Integer.valueOf(responsibleNode));
                 logPrint("[query] start a socket and connected!");
-                String strSend = "QUERY" + REGEX + selection;
-                OutputStream outputStream = socket0.getOutputStream();
-                outputStream.write((strSend).getBytes());
-                outputStream.flush();
+                strSend = "QUERY" + REGEX + selection;
+                OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
+                myWrite.write(strSend+"\n");
+                myWrite.flush();
+//                myWrite.close();
 
-                logPrint("[query] Finish sending query command: "+strSend + " , and wait feedback.....");
-
+                logPrint("[query] Finish sending query command: "+ strSend + " , and wait feedback.....");
+                logPrint("1");
                 BufferedReader br = new BufferedReader(new InputStreamReader(socket0.getInputStream()));
-                String[] queryResponses = br.readLine().split(REGEX);
-                logPrint("[query] Got feedback");
+                logPrint("2");
+                String tmp = br.readLine();
+                logPrint("3");
+                br.close();
+                logPrint("4");
+                logPrint("[query] I got feedback: "+tmp);
+                String[] queryResponses = tmp.split(REGEX);
                 for (int j = 1; j < queryResponses.length; j+=2) {
                     myCursor.addRow(new String[]{queryResponses[j], queryResponses[j+1]});
                 }
@@ -232,7 +244,9 @@ public class SimpleDhtProvider extends ContentProvider {
                 socket0.close();
 
             } catch (IOException e){
-                logPrint(e.getMessage());
+                logPrint("[query2]"+e.getMessage()+",,,"+e.getStackTrace());
+            } catch (Exception e1){
+                logPrint("[query3]"+ e1.getMessage()+",,,"+ e1.getStackTrace());
             }
             return myCursor;
 
@@ -254,7 +268,7 @@ public class SimpleDhtProvider extends ContentProvider {
         ///**************** end
 
         if(selection != null){
-            Log.v("query", selection);
+            logPrint("query: "+selection);
         }else{
             logPrint("[localQuery] query everything");
         }
@@ -327,15 +341,30 @@ public class SimpleDhtProvider extends ContentProvider {
 
     }
 
+    /*
+    private Socket startConnection(String port){
+        while (true){
+            logPrint("[startConnection] ...");
+            try{
+                Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                        Integer.valueOf(port));
+                return socket0;
+            }catch (Exception e){
+                logPrint("[onCreate] Got an exception when tring to connect to 11108: "+e.getMessage());
+                try {
+                    Thread.sleep(50);
+                }catch (InterruptedException e1){
+                    logPrint(e1.getMessage());
+                }
+            }
+        }
+    }*/
+
     public class ServerTask extends AsyncTask<ServerSocket, String, Void> {
 
         @Override
         protected Void doInBackground(ServerSocket... sockets) {
-            ///连接11108
-            ////////todo: 如果不是11108就持续发送
             if(selfPort.equals("11108")){
-//            predecessor = "11108";
-//            successor = "11108";
                 allNodes.add("11108");
             } else {
                 while (true){
@@ -348,6 +377,7 @@ public class SimpleDhtProvider extends ContentProvider {
                         OutputStream outputStream = socket0.getOutputStream();
                         outputStream.write((strToSend).getBytes());
                         outputStream.flush();
+                        outputStream.close();
                         socket0.close();
                         break;
 
@@ -358,7 +388,6 @@ public class SimpleDhtProvider extends ContentProvider {
                         }catch (InterruptedException e1){
                             logPrint(e1.getMessage());
                         }
-                        continue;
                     }
                 }
             }
@@ -367,12 +396,13 @@ public class SimpleDhtProvider extends ContentProvider {
 
             ServerSocket serverSocket = sockets[0];
             ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
+//            ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
             while (true) {
                 try {
                     Socket socket_sv = serverSocket.accept();
                     logPrint("I accpted a new socket");
                     cachedThreadPool.execute(new AsServer(socket_sv));
-
+//                    singleThreadExecutor.execute(new AsServer(socket_sv));
 //                    BufferedReader br = new BufferedReader(new InputStreamReader(socket_sv.getInputStream()));
 //                    String msg = br.readLine();
 
@@ -392,12 +422,16 @@ public class SimpleDhtProvider extends ContentProvider {
             }
 
             public void run(){
-                Scanner scanner;
+//                Scanner scanner;
                 String msg;
                 try{
-                    scanner = new Scanner(socket_accepted.getInputStream());
-                    while (!scanner.hasNext()){;}
-                    msg = scanner.nextLine();
+                    logPrint("[AsServer::run]");
+//                    scanner = new Scanner(socket_accepted.getInputStream());
+//                    while (!scanner.hasNext()){logPrint("scanner");}
+//                    msg = scanner.nextLine();
+                    BufferedReader br = new BufferedReader(new InputStreamReader(socket_accepted.getInputStream()));
+                    msg = br.readLine();
+
                     logPrint("And I got a msg: "+msg);
                     dealwithCommand(socket_accepted, msg);
                 }catch (Exception e){
@@ -446,6 +480,7 @@ public class SimpleDhtProvider extends ContentProvider {
                         OutputStream outputStream = socket0.getOutputStream();
                         outputStream.write((strToSend).getBytes());
                         outputStream.flush();
+                        outputStream.close();
 
                         socket0.close();
 
@@ -460,8 +495,10 @@ public class SimpleDhtProvider extends ContentProvider {
                 //1, 加入节点，2， 转移数据
                 String[] tokens = content.split(REGEX);
                 if (allNodes.isEmpty()){
+                    logPrint("[onJOINUPDATE]allNodes is empty");
                     Collections.addAll(allNodes, tokens);
                 }else{
+                    logPrint("[onJOINUPDATE]allNodes is not empty");
                     //不是空的情况下，要看看插入的是不是自己的上游。如果是，需要发送和他分享数据。
                     ArrayList<String> newAllNodes = new ArrayList<String>();
                     Collections.addAll(newAllNodes, tokens);
@@ -489,6 +526,7 @@ public class SimpleDhtProvider extends ContentProvider {
                                 strSend = "INSERT" + REGEX + strSend;
                                 outputStream.write((strSend).getBytes());
                                 outputStream.flush();
+                                outputStream.close();
 
                                 socket0.close();
                             }catch (Exception e){
@@ -496,6 +534,7 @@ public class SimpleDhtProvider extends ContentProvider {
                             }
                         }
                     }
+                    allNodes = newAllNodes;
                 }
             }
 
@@ -510,10 +549,11 @@ public class SimpleDhtProvider extends ContentProvider {
                 }
 
                 try{
-                    OutputStream outputStream = socket.getOutputStream();
-                    String strSend = "OK";
-                    outputStream.write((strSend).getBytes());
-                    outputStream.flush();
+//                    OutputStream outputStream = socket.getOutputStream();
+//                    String strSend = "OK";
+//                    outputStream.write((strSend).getBytes());
+//                    outputStream.flush();
+//                    outputStream.close();
                     socket.close();
                 }catch (Exception e){
                     logPrint(e.getMessage());
@@ -539,13 +579,13 @@ public class SimpleDhtProvider extends ContentProvider {
                     strSend += retCursor.getString(0) + REGEX + retCursor.getString(1) + REGEX;
                     retCursor.moveToNext();
                 }
-
                 //整理 retCursor 并发送
                 try{
-                    OutputStream outputStream = socket.getOutputStream();
+                    OutputStreamWriter myWrite = new OutputStreamWriter(socket.getOutputStream());
                     strSend = "QUERYRESPONSE" + REGEX + strSend;
-                    outputStream.write((strSend).getBytes());
-                    outputStream.flush();
+                    logPrint("[onQUERY] sending msg: "+strSend);
+                    myWrite.write(strSend+"\n");
+                    myWrite.flush();
                     socket.close();
                 }catch (Exception e){
                     logPrint(e.getMessage());

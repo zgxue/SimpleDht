@@ -52,7 +52,7 @@ public class OnTestClickListenerLDump implements View.OnClickListener {
 
             boolean gonnaQuery = true;
             try{
-                Thread.sleep(2000);
+                Thread.sleep(100);
             }catch (Exception e){
                 Log.e(TAG, e.getMessage());
             }
@@ -92,11 +92,11 @@ public class OnTestClickListenerLDump implements View.OnClickListener {
 
         private Cursor testQuery() {
 
-//            Cursor resultCursor = mContentResolver.query(mUri, null,
-//                    "@", null, null);
-            Log.e(TAG, "Now in testQuery()");
             Cursor resultCursor = mContentResolver.query(mUri, null,
-                    "xueKey1", null, null);
+                    "*", null, null);
+            Log.e(TAG, "Now in testQuery()");
+//            Cursor resultCursor = mContentResolver.query(mUri, null,
+//                    "key4", null, null);
             Log.e(TAG, "[testQuery()] finish query and got resultCursor");
             return resultCursor;
         }
