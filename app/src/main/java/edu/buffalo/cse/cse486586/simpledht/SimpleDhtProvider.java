@@ -161,7 +161,8 @@ public class SimpleDhtProvider extends ContentProvider {
 
 
         try{
-            selfHash = genHash(selfPort);
+            selfHash = genHash( String.valueOf(Integer.valueOf(selfPort)/2));
+//            selfHash = genHash(selfPort);
             logPrint(selfHash);
         }catch (NoSuchAlgorithmException e){
             logPrint(e.getMessage());
@@ -299,8 +300,10 @@ public class SimpleDhtProvider extends ContentProvider {
         // Sorting
         Collections.sort(inputList, new Comparator<String>() {
             @Override
-            public int compare(String lhs, String rhs)
+            public int compare(String lhsOriginal, String rhsOriginal)
             {
+                String lhs = String.valueOf(Integer.valueOf(lhsOriginal)/2);
+                String rhs = String.valueOf(Integer.valueOf(rhsOriginal)/2);
                 int flag;
                 try{
                     flag = genHash(lhs).compareTo(genHash(rhs));
@@ -327,7 +330,7 @@ public class SimpleDhtProvider extends ContentProvider {
         for (int i = 0; i < allNodes.size(); i++) {
             String currentNodeHash;
             try{
-                currentNodeHash = genHash(allNodes.get(i));
+                currentNodeHash = genHash( String.valueOf(Integer.valueOf(allNodes.get(i))/2));
             }catch (NoSuchAlgorithmException e){
                 logPrint(e.getMessage());
                 return null;
