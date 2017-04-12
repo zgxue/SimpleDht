@@ -90,29 +90,56 @@ public class SimpleDhtProvider extends ContentProvider {
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
-        String responsibleNode = findResponsibleNode(selection);
-        if(responsibleNode.equals(selfPort)){
-            localDelete(selection);
-        }else{
-            try{
-                Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
-                        Integer.valueOf(responsibleNode));
-                String strSend = "DELETE"+REGEX+selection;
-                OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
-                myWrite.write(strSend+"\n");
-                myWrite.flush();
-                socket0.close();
-            }catch(Exception e){
-                logPrint("[delete] "+ e.getMessage());
+        if (selection.equals("@")){
+            return localDelete("*All*");
+        } else if (selection.equals("*")) {
+            for (int i = 0; i < allNodes.size(); i++) {
+
+                try {
+                    Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                            Integer.valueOf(allNodes.get(i)));
+                    String strSend = "DELETE" + REGEX + "*ALL*";
+                    OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
+                    myWrite.write(strSend + "\n");
+                    myWrite.flush();
+                    socket0.close();
+
+                } catch (IOException e) {
+                    logPrint("[delete2]" + e.getMessage());
+                }
+            }
+        } else {
+            String responsibleNode = findResponsibleNode(selection);
+            if(responsibleNode.equals(selfPort)){
+                localDelete(selection);
+            }else{
+                try{
+                    Socket socket0 = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                            Integer.valueOf(responsibleNode));
+                    String strSend = "DELETE"+REGEX+selection;
+                    OutputStreamWriter myWrite = new OutputStreamWriter(socket0.getOutputStream());
+                    myWrite.write(strSend+"\n");
+                    myWrite.flush();
+                    socket0.close();
+                }catch(Exception e){
+                    logPrint("[delete] "+ e.getMessage());
+                }
             }
         }
-
         return 0;
     }
 
     private int localDelete(String selection){
-        db = mySQLiteOpenHelper.getWritableDatabase();
-        return db.delete(DB_NAME, "key='"+selection + "'", null);
+        if (selection.equals("*ALL*")) {
+            db = mySQLiteOpenHelper.getWritableDatabase();
+            return db.delete(DB_NAME, null, null);  //delete all
+
+        }else{
+            db = mySQLiteOpenHelper.getWritableDatabase();
+            return db.delete(DB_NAME, "key='"+selection + "'", null);
+        }
+
+
     }
 
     @Override
