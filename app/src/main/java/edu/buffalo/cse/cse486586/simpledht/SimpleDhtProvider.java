@@ -423,7 +423,6 @@ public class SimpleDhtProvider extends ContentProvider {
                         outputStream.flush();
                         outputStream.close();
                         socket0.close();
-                        break;
 
                     } catch (Exception e){
                         logPrint("[onCreate] Got an exception when tring to connect to 11108: "+e.getMessage());
